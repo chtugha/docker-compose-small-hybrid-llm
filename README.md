@@ -10,7 +10,7 @@ services:
     container_name: lmcache-server
     ports:
       - "5555:5555"
-    command: python3 -m lmcache_server.server --host 0.0.0.0 --port 5555
+    command: python3 -m lmcache.server --host 0.0.0.0 --port 5555
     restart: unless-stopped
 
   vllm:
