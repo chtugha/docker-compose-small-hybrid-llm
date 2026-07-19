@@ -31,7 +31,7 @@ services:
     restart: unless-stopped
     entrypoint: ["vllm", "serve"]
     command: >
-      --model cyankiwi/Ornith-1.0-9B-AWQ-INT4
+      cyankiwi/Ornith-1.0-9B-AWQ-INT4
       --quantization compressed-tensors
       --gpu-memory-utilization 0.85
       --max-model-len 131072
@@ -46,8 +46,8 @@ services:
       --tool-call-parser qwen3_xml
       --reasoning-parser qwen3
       --language-model-only
-      --kv-offloading-backend lmcache
-      --kv-offloading-size 16GiB
+      --kv-offloading-backend lmcache       
+      --kv-offloading-size 16
       --kv-offloading-config '{"host":"lmcache-server","port":5555}'
     depends_on:
       - lmcache-server
