@@ -10,11 +10,11 @@ services:
     container_name: lmcache-server
     ports:
       - "5555:5555"
-    command: python3 -m lmcache.server --host 0.0.0.0 --port 5555
+    command: python3 -m lmcache.v1.standalone --host 0.0.0.0 --port 5555
     restart: unless-stopped
 
   vllm:
-    image: vllm/vllm-openai:latest  # Pin to a specific version for reproducibility
+    image: lmcache/vllm-openai:latest  # Pin to a specific version for reproducibility
     container_name: vllm-ornith
     runtime: nvidia
     ports:
@@ -28,6 +28,9 @@ services:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+      - PYTHONHASHSEED=0
+      - LMCACHE_PORT=5555
+      - LMCACHE_HOST=0.0.0.0
     restart: unless-stopped
     entrypoint: ["vllm", "serve"]
     command: >
@@ -46,9 +49,9 @@ services:
       --tool-call-parser qwen3_xml
       --reasoning-parser qwen3
       --language-model-only
-      --kv-offloading-backend lmcache       
       --kv-offloading-size 16
-      --kv-offloading-config '{"host":"lmcache-server","port":5555}'
+      --no-disable-hybrid-kv-cache-manager
+      --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmca>
     depends_on:
       - lmcache-server
     deploy:
