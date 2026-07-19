@@ -10,7 +10,7 @@ services:
     container_name: lmcache-server
     ports:
       - "5555:5555"
-    command: python3 -m lmcache.v1.standalone --host 0.0.0.0 --port 5555
+    command: sh -c "export PYTHONHASHSEED=0 && python3 -m lmcache.v1.standalone --host 0.0.0.0 --port 5555"
     restart: unless-stopped
 
   vllm:
@@ -28,9 +28,9 @@ services:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
-      - PYTHONHASHSEED=0
       - LMCACHE_PORT=5555
       - LMCACHE_HOST=0.0.0.0
+      - LMCACHE_USE_CONTROLLER=False
     restart: unless-stopped
     entrypoint: ["vllm", "serve"]
     command: >
@@ -51,7 +51,7 @@ services:
       --language-model-only
       --kv-offloading-size 16
       --no-disable-hybrid-kv-cache-manager
-      --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmca>
+      --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"lmcache-server","lmc>
     depends_on:
       - lmcache-server
     deploy:
