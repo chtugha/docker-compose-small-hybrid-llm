@@ -85,6 +85,7 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --reasoning-parser qwen3 \
     --trust-remote-code \
     --performance-mode interactivity \
+    --no-disable-hybrid-kv-cache-manager \
     --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_connector_module_path":"lmcache.integration.vllm.lmcache_mp_connector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"127.0.0.1","lmcache.mp.port":5555}}'
 
 Restart=on-failure
