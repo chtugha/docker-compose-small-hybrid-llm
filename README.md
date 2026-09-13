@@ -62,6 +62,8 @@ Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
 Environment="HF_HOME=/opt/vLLM/huggingface"
 Environment="PYTHONHASHSEED=0"
 Environment="HF_TOKEN=hf_*****'"
+Environment="CUDA_HOME=/usr/local/cuda"
+Environment="PATH=/usr/local/cuda/bin:/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --host 0.0.0.0 \
