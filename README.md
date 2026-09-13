@@ -1,3 +1,95 @@
+cd /tmp
+
+wget https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb
+
+dpkg -i cuda-keyring_1.1-1_all.deb
+
+apt update
+
+apt install nvidia-open
+
+apt install nvidia-driver-cuda nvidia-kernel-open-dkms cuda-toolkit
+
+apt install -y python3-venv python3-pip
+
+mkdir -p /opt/vllm
+cd /opt/vLLM
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -U lmcache vllm
+
+nano /etc/systemd/system/lmcache.service
+
+[Unit]
+Description=LMCache MP KV Cache Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vLLM
+Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONHASHSEED=0"
+ExecStart=/opt/vLLM/.venv/bin/lmcache server --host 127.0.0.1 --port 5555 --l1-size-gb 24 --eviction-policy LRU
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+systemctl daemon-reload
+systemctl enable --now lmcache.service
+
+
+cat >/etc/systemd/system/vllm.service <<'EOF'
+[Unit]
+Description=vLLM Ornith-1.5-9B-AWQ-INT4
+After=network-online.target lmcache.service
+Wants=network-online.target
+Requires=lmcache.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vLLM
+
+Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="HF_HOME=/opt/vLLM/huggingface"
+Environment="PYTHONHASHSEED=0"
+Environment="HF_TOKEN=hf_*****'"
+
+ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --max-model-len 131072 \
+    --gpu-memory-utilization 0.90 \
+    --max-num-seqs 1 \
+    --enable-auto-tool-choice \
+    --enable-prefix-caching \
+    --enable-chunked-prefill \
+    --max-num-batched-tokens 8192 \
+    --kv-cache-dtype fp8 \
+    --tool-call-parser qwen3_xml \
+    --reasoning-parser qwen3 \
+    --trust-remote-code \
+    --language-model-only \
+    --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_connector_module_path":"lmcache.integration.vllm.lmcache_mp_connector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"127.0.0.1","lmcache.mp.port":5555}}'
+
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+
 # docker-compose.yml
 # Docker Compose v2 format (version key is deprecated and omitted)
 # Create a .env file in the same directory with: HF_TOKEN=hf_yourtoken
