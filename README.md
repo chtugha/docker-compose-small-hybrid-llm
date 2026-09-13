@@ -12,7 +12,7 @@ apt install nvidia-driver-cuda nvidia-kernel-open-dkms cuda-toolkit
 
 apt install -y python3-venv python3-pip
 
-apt-get install -y linux-cpupower
+apt-get install -y linux-cpupower numactl
 
 cpupower frequency-set -g performance
 
