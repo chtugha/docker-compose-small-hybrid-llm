@@ -12,6 +12,10 @@ apt install nvidia-driver-cuda nvidia-kernel-open-dkms cuda-toolkit
 
 apt install -y python3-venv python3-pip
 
+apt-get install -y linux-cpupower
+
+cpupower frequency-set -g performance
+
 mkdir -p /opt/vllm
 cd /opt/vLLM
 python3 -m venv .venv
