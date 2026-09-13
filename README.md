@@ -73,17 +73,18 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --host 0.0.0.0 \
     --port 8000 \
     --max-model-len 131072 \
-    --gpu-memory-utilization 0.90 \
+    --gpu-memory-utilization 0.75 \
     --max-num-seqs 1 \
     --enable-auto-tool-choice \
     --enable-prefix-caching \
     --enable-chunked-prefill \
     --max-num-batched-tokens 8192 \
     --kv-cache-dtype fp8 \
+    --safetensors-load-strategy=prefetch \
     --tool-call-parser qwen3_xml \
     --reasoning-parser qwen3 \
     --trust-remote-code \
-    --language-model-only \
+    --performance-mode interactivity \
     --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_connector_module_path":"lmcache.integration.vllm.lmcache_mp_connector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"127.0.0.1","lmcache.mp.port":5555}}'
 
 Restart=on-failure
