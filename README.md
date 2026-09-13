@@ -90,6 +90,12 @@ EOF
 
 
 
+export PATH=/usr/local/cuda/bin:$PATH
+export CUDA_HOME=/usr/local/cuda
+
+
+
+
 # docker-compose.yml
 # Docker Compose v2 format (version key is deprecated and omitted)
 # Create a .env file in the same directory with: HF_TOKEN=hf_yourtoken
