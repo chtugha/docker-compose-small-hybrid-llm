@@ -80,7 +80,7 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --enable-chunked-prefill \
     --max-num-batched-tokens 8192 \
     --kv-cache-dtype fp8 \
-    --safetensors-load-strategy=prefetch \
+    --safetensors-load-strategy prefetch \
     --tool-call-parser qwen3_xml \
     --reasoning-parser qwen3 \
     --trust-remote-code \
