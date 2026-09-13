@@ -73,7 +73,7 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --host 0.0.0.0 \
     --port 8000 \
     --max-model-len 131072 \
-    --gpu-memory-utilization 0.80 \
+    --gpu-memory-utilization 0.775 \
     --max-num-seqs 1 \
     --enable-auto-tool-choice \
     --enable-prefix-caching \
