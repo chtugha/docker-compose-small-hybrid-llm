@@ -36,7 +36,7 @@ User=root
 WorkingDirectory=/opt/vLLM
 Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="PYTHONHASHSEED=0"
-ExecStart=/opt/vLLM/.venv/bin/lmcache server --host 127.0.0.1 --port 5555 --l1-size-gb 24 --eviction-policy LRU --chunk-size 1056
+ExecStart=/opt/vLLM/.venv/bin/lmcache server --host 127.0.0.1 --port 5555 --l1-size-gb 24 --eviction-policy LRU --chunk-size 1056 --worker-reap-timeout-seconds 0
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
