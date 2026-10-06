@@ -57,6 +57,12 @@ After=network-online.target lmcache.service
 Wants=network-online.target
 Requires=lmcache.service
 
+[Unit]
+Description=vLLM Ornith-1.5-9B-AWQ-INT4
+After=network-online.target lmcache.service
+Wants=network-online.target
+Requires=lmcache.service
+
 [Service]
 Type=simple
 User=root
@@ -65,15 +71,16 @@ WorkingDirectory=/opt/vLLM
 Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="HF_HOME=/opt/vLLM/huggingface"
 Environment="PYTHONHASHSEED=0"
-Environment="HF_TOKEN=hf_*****'"
+Environment="HF_TOKEN=hf_cSkfdDe"
 Environment="CUDA_HOME=/usr/local/cuda"
 Environment="PATH=/usr/local/cuda/bin:/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 
 ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --host 0.0.0.0 \
     --port 8000 \
     --max-model-len 131072 \
-    --gpu-memory-utilization 0.9 \
+    --gpu-memory-utilization 0.90 \
     --max-num-seqs 1 \
     --enable-auto-tool-choice \
     --enable-prefix-caching \
@@ -81,6 +88,7 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --max-num-batched-tokens 8192 \
     --kv-cache-dtype fp8 \
     --safetensors-load-strategy prefetch \
+    --mm-processor-kwargs '{"cap_pixels_per_frame":true}' \
     --tool-call-parser qwen3_xml \
     --reasoning-parser qwen3 \
     --trust-remote-code \
@@ -94,7 +102,6 @@ TimeoutStopSec=60
 
 [Install]
 WantedBy=multi-user.target
-EOF
 
 
 
