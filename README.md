@@ -127,7 +127,42 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VLLM_URL = "http://127.0.0.1:8000"
 KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
-DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier")
+DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier", "client_metadata")
+BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search", "exec")
+
+def extract_tools_from_list(tool_list):
+    extracted = []
+    for t in tool_list:
+        if not isinstance(t, dict):
+            continue
+        t_type = t.get("type", "")
+        if t_type == "namespace" and isinstance(t.get("tools"), list):
+            extracted.extend(extract_tools_from_list(t["tools"]))
+            continue
+
+        name = t.get("name") or t.get("function", {}).get("name", "")
+        if not name or name.lower().startswith(BLOCKED_TOOL_PREFIXES):
+            continue
+
+        desc = t.get("description") or t.get("function", {}).get("description", "")
+        params = t.get("parameters") or t.get("function", {}).get("parameters")
+        if not isinstance(params, dict):
+            # Für "custom"-Tools (wie apply_patch oder raw input) ein Standard-JSON-Schema bereitstellen
+            params = {
+                "type": "object",
+                "properties": {
+                    "input": {"type": "string", "description": "Input payload or command for the tool"}
+                },
+                "required": ["input"]
+            }
+
+        extracted.append({
+            "type": "function",
+            "name": name,
+            "description": desc,
+            "parameters": params
+        })
+    return extracted
 
 class CodexFilterProxy(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -159,21 +194,28 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
             if data.get("model") not in KNOWN_MODELS:
                 data["model"] = "gpt-5.6-sol"
 
+            collected_tools = extract_tools_from_list(data.get("tools", []))
+
             if isinstance(data.get("input"), list):
-                data["input"] = [
-                    item for item in data["input"]
-                    if not (isinstance(item, dict) and item.get("type") in ("additional_tools", "item_reference"))
-                ]
+                cleaned_input = []
+                for item in data["input"]:
+                    if isinstance(item, dict) and item.get("type") == "additional_tools":
+                        if isinstance(item.get("tools"), list):
+                            collected_tools.extend(extract_tools_from_list(item["tools"]))
+                        continue
+                    if isinstance(item, dict) and item.get("type") == "item_reference":
+                        continue
+                    cleaned_input.append(item)
+                data["input"] = cleaned_input
 
-            if isinstance(data.get("tools"), list):
-                data["tools"] = [
-                    t for t in data["tools"]
-                    if not (isinstance(t, dict) and str(t.get("type", "")).startswith("web_search"))
-                ]
-
-            tools_summary = [{"type": t.get("type"), "name": t.get("name")} for t in data.get("tools", []) if isinstance(t, dict)]
-            sys.stderr.write("TOOLS_DUMP: " + json.dumps(tools_summary) + "\n")
-            sys.stderr.flush()
+            if collected_tools:
+                # Duplikate anhand des Namens entfernen
+                unique_tools = {}
+                for tool in collected_tools:
+                    unique_tools[tool["name"]] = tool
+                data["tools"] = list(unique_tools.values())
+                sys.stderr.write(f"INJECTED VLLM TOOLS ({len(data['tools'])}): {list(unique_tools.keys())}\n")
+                sys.stderr.flush()
 
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
@@ -211,7 +253,6 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
 ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
     ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
-
 
 _____________
 
