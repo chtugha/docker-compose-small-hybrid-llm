@@ -128,7 +128,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 VLLM_URL = "http://127.0.0.1:8000"
 KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
 DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier", "client_metadata")
-BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search", "exec")
+BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search")
+BLOCKED_EXACT_NAMES = ("exec", "js", "js_reset")
 
 def extract_tools_from_list(tool_list):
     extracted = []
@@ -141,13 +142,13 @@ def extract_tools_from_list(tool_list):
             continue
 
         name = t.get("name") or t.get("function", {}).get("name", "")
-        if not name or name.lower().startswith(BLOCKED_TOOL_PREFIXES):
+        low_name = name.lower()
+        if not name or low_name in BLOCKED_EXACT_NAMES or low_name.startswith(BLOCKED_TOOL_PREFIXES):
             continue
 
         desc = t.get("description") or t.get("function", {}).get("description", "")
         params = t.get("parameters") or t.get("function", {}).get("parameters")
         if not isinstance(params, dict):
-            # Für "custom"-Tools (wie apply_patch oder raw input) ein Standard-JSON-Schema bereitstellen
             params = {
                 "type": "object",
                 "properties": {
@@ -209,7 +210,6 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                 data["input"] = cleaned_input
 
             if collected_tools:
-                # Duplikate anhand des Namens entfernen
                 unique_tools = {}
                 for tool in collected_tools:
                     unique_tools[tool["name"]] = tool
