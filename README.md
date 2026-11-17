@@ -130,6 +130,14 @@ DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "
 BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search")
 BLOCKED_EXACT_NAMES = ("js", "js_reset")
 
+EFFORT_TO_BUDGET = {
+    "minimal": 128,
+    "low": 512,
+    "medium": 2048,
+    "high": 4096,
+    "xhigh": 6144,
+}
+
 def extract_tools_from_list(tool_list):
     extracted = []
     for t in tool_list:
@@ -236,9 +244,18 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                     unique_tools[tool["name"]] = tool
                 data["tools"] = list(unique_tools.values())
 
+            # Codex reasoning.effort in natives Qwen3 thinking_budget übersetzen
+            reasoning_cfg = data.get("reasoning")
+            effort = reasoning_cfg.get("effort", "low") if isinstance(reasoning_cfg, dict) else "low"
+            budget = EFFORT_TO_BUDGET.get(str(effort).lower(), 512)
+            data["chat_template_kwargs"] = {
+                "enable_thinking": True,
+                "thinking_budget": budget,
+            }
+
             data["temperature"] = 0.25
             data["top_p"] = 0.9
-            data["repetition_penalty"] = 1.08
+            data["repetition_penalty"] = 1.12
             data["max_output_tokens"] = min(int(data.get("max_output_tokens", 8192)), 8192)
 
             for key in DROP_TOP_LEVEL_KEYS:
