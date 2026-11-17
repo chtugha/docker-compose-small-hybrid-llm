@@ -171,12 +171,17 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                     if not (isinstance(t, dict) and str(t.get("type", "")).startswith("web_search"))
                 ]
 
+            tools_summary = [{"type": t.get("type"), "name": t.get("name")} for t in data.get("tools", []) if isinstance(t, dict)]
+            sys.stderr.write("TOOLS_DUMP: " + json.dumps(tools_summary) + "\n")
+            sys.stderr.flush()
+
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
 
             body = json.dumps(data).encode("utf-8")
         except Exception as ex:
             sys.stderr.write(f"JSON PARSE ERROR: {ex}\n")
+            sys.stderr.flush()
 
         headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
         headers["Content-Length"] = str(len(body))
@@ -206,6 +211,7 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
 ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
     ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
+
 
 _____________
 
