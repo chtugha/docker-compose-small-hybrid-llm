@@ -117,6 +117,7 @@ ____________________________________
 
 nano /opt/vLLM/codex_proxy.py
 
+
 import json
 import sys
 import urllib.error
@@ -125,8 +126,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VLLM_URL = "http://127.0.0.1:8000"
 KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
-ALLOWED_TOOL_PREFIXES = ("shell", "local_shell", "apply_patch", "read_file", "write_file", "list_dir", "grep", "find")
 DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier")
+
+# Nur schwere Plugin-/MCP-Tools herausfiltern, alle nativen Codex-Tools durchlassen
+BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search")
 
 class CodexFilterProxy(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -155,7 +158,6 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
         try:
             data = json.loads(body)
 
-            # Nur unbekannte Hintergrund-Modelle (wie gpt-6-luna) auf gpt-5.6-sol mappen
             if data.get("model") not in KNOWN_MODELS:
                 data["model"] = "gpt-5.6-sol"
 
@@ -166,13 +168,18 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                 ]
 
             if isinstance(data.get("tools"), list):
-                filtered_tools = []
+                kept_tools = []
+                kept_names = []
                 for tool in data["tools"]:
-                    t_name = tool.get("name") or tool.get("function", {}).get("name", "")
-                    t_type = tool.get("type", "")
-                    if t_type in ("local_shell", "shell") or t_name.startswith(ALLOWED_TOOL_PREFIXES):
-                        filtered_tools.append(tool)
-                data["tools"] = filtered_tools
+                    t_name = (tool.get("name") or tool.get("function", {}).get("name", "")).lower()
+                    t_type = tool.get("type", "").lower()
+                    if t_type.startswith("web_search") or t_name.startswith(BLOCKED_TOOL_PREFIXES):
+                        continue
+                    kept_tools.append(tool)
+                    kept_names.append(f"{t_type}:{t_name}")
+                data["tools"] = kept_tools
+                sys.stderr.write(f"ACTIVE TOOLS ({len(kept_names)}): {kept_names}\n")
+                sys.stderr.flush()
 
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
@@ -209,7 +216,6 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
 ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
     ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
-
 
 
 _____________
