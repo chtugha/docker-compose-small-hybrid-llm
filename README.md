@@ -227,3 +227,169 @@ sed -i 's/if __name__ == "__main__":/ThreadingHTTPServer.allow_reuse_address = T
 systemctl daemon-reload
 systemctl enable --now codex-proxy.service
 
+_____________
+
+On the MAC: !!!! be AWARE OF THE NECESSARY base_url CHANGE !!!! AND THE PATHS !!!
+
+nano ~/.codex/config.toml
+
+sandbox_mode = "workspace-write"
+web_search = "live"
+service_tier = "priority"
+notify = ["/Users/ollama/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
+model_provider = "dietpi_vllm"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "low"
+model_context_window = 131072
+model_auto_compact_token_limit = 95000
+
+[model_providers.dietpi_vllm]
+name = "DietPi vLLM (Ornith-1.5-9B)"
+base_url = "http://192.168.10"
+wire_api = "responses"
+requires_openai_auth = false
+env_key = "OPENAI_API_KEY"
+
+[profiles.dietpi]
+model_provider = "dietpi_vllm"
+model = "cyankiwi/Ornith-1.5-9B-AWQ-INT4"
+model_reasoning_effort = "low"
+model_context_window = 131072
+model_auto_compact_token_limit = 95000
+web_search = "disabled"
+service_tier = "default"
+
+[profiles.dietpi.mcp_servers.node_repl]
+enabled = false
+
+[profiles.dietpi.plugins."browser@openai-bundled"]
+enabled = false
+
+[profiles.dietpi.plugins."unified-computer-use@openai-bundled"]
+enabled = false
+
+[profiles.dietpi.plugins."computer-use@openai-bundled"]
+enabled = false
+
+[profiles.dietpi.plugins."visualize@openai-bundled"]
+enabled = false
+
+[profiles.dietpi.plugins."documents@openai-primary-runtime"]
+enabled = false
+
+[profiles.dietpi.plugins."pdf@openai-primary-runtime"]
+enabled = false
+
+[profiles.dietpi.plugins."spreadsheets@openai-primary-runtime"]
+enabled = false
+
+[profiles.dietpi.plugins."presentations@openai-primary-runtime"]
+enabled = false
+
+[profiles.dietpi.plugins."template-creator@openai-primary-runtime"]
+enabled = false
+
+[desktop]
+followUpQueueMode = "queue"
+conversationDetailMode = "STEPS_COMMANDS"
+ambient-suggestions-enabled = false
+projectlessWorkspaceRoot = "/Volumes/SSDE/Projectless"
+preventSleepWhileRunning = true
+composerPlainTextMode = true
+show-context-window-usage = true
+composerEnterBehavior = "cmdIfMultiline"
+agent-usage-reset-enabled = false
+
+[desktop.open-in-target-preferences]
+global = "systemDefault"
+
+[marketplaces.openai-bundled]
+source_type = "local"
+source = "/Users/ollama/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+source_type = "local"
+source = "/Users/ollama/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[plugins."codex-app-tools@openai-bundled"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."unified-computer-use@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[mcp_servers.node_repl]
+args = []
+command = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl"
+env_vars = ["BROWSER_USE_ACCESS_EXECUTOR_ID", "BROWSER_USE_ACCESS_PIPE_PATH", "BROWSER_USE_ACCESS_VERIFYING_IDENTITY"]
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/ollama/.codex:/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
+CODEX_HOME = "/Users/ollama/.codex"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab,mcpapps"
+BROWSER_USE_TINYSKY_ENABLED = "1"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
+NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE = ""
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.1111.21308"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/Users/ollama/.codex/plugins/cache/openai-bundled/browser/26.1111.21308/scripts/browser-service.mjs","sky":"@oai/sky/service"}'
+SKY_CUA_SERVICE_PATH = "/Users/ollama/.codex/computer-use/Codex Computer Use.app"
+CODEX_CLI_PATH = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+
+[features]
+local_thread_store_compression = true
+
+[projects."/Volumes/SSDE/brassclaw"]
+trust_level = "trusted"
+
+[projects."/private/tmp"]
+trust_level = "trusted"
+
+[projects."/Users/ollama/.codex"]
+trust_level = "trusted"
+
+[sandbox_workspace_write]
+network_access = true
+writable_roots = [
+  "/Volumes/SSDE/brassclaw",
+  "/Users/ollama/brassclaw-target",
+  "/private/tmp",
+  "/Volumes/Philips",
+]
+
+[shell_environment_policy.set]
+CARGO_TARGET_DIR = "/Users/ollama/brassclaw-target"
+
+[apps.connector_openai_chatgpt_pets]
+enabled = false
+
+[plugins."codex-app-tools@openai-bundled".mcp_servers.codex_app.tools.send_message_to_thread]
+approval_mode = "approve"
