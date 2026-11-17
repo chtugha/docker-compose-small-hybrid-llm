@@ -384,24 +384,24 @@ service_tier = "priority"
 notify = ["/Users/ollama/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
 model_provider = "dietpi_vllm"
 model = "gpt-5.6-sol"
-model_reasoning_effort = "low"
-model_context_window = 131072
+model_reasoning_effort = "medium"
+model_context_window = 98304
 model_auto_compact_token_limit = 75000
 
 [model_providers.dietpi_vllm]
 name = "DietPi vLLM (Ornith-1.5-9B)"
-base_url = "http://192.168.10"
+base_url = "http://192.168.10.171:8001/v1"
 wire_api = "responses"
 requires_openai_auth = false
 env_key = "OPENAI_API_KEY"
 
 [profiles.dietpi]
 model_provider = "dietpi_vllm"
-model = "cyankiwi/Ornith-1.5-9B-AWQ-INT4"
-model_reasoning_effort = "low"
-model_context_window = 131072
+model = "ornith-ai/Ornith-1.5-9B-NVFP4"
+model_reasoning_effort = "medium"
+model_context_window = 98304
 model_auto_compact_token_limit = 75000
-web_search = "disabled"
+web_search = "live"
 service_tier = "default"
 
 [profiles.dietpi.mcp_servers.node_repl]
@@ -538,3 +538,4 @@ enabled = false
 
 [plugins."codex-app-tools@openai-bundled".mcp_servers.codex_app.tools.send_message_to_thread]
 approval_mode = "approve"
+
