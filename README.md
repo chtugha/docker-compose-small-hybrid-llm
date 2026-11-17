@@ -236,6 +236,11 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                     unique_tools[tool["name"]] = tool
                 data["tools"] = list(unique_tools.values())
 
+            # Stabile Sampling-Parameter für 9B-AWQ-INT4 erzwingen (verhindert Wortsalat & Schleifen)
+            data["temperature"] = 0.25
+            data["top_p"] = 0.9
+            data["repetition_penalty"] = 1.08
+
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
 
