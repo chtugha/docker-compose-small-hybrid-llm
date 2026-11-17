@@ -164,6 +164,24 @@ def extract_tools_from_list(tool_list):
         })
     return extracted
 
+def normalize_tool_call_args(item):
+    if not isinstance(item, dict):
+        return item
+    if item.get("type") in ("function_call", "custom_tool_call"):
+        item["type"] = "function_call"
+        raw = item.get("arguments") if "arguments" in item else item.get("input", "{}")
+        if isinstance(raw, dict):
+            item["arguments"] = json.dumps(raw)
+        elif isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if not isinstance(parsed, dict):
+                    item["arguments"] = json.dumps({"input": raw})
+            except Exception:
+                item["arguments"] = json.dumps({"input": raw})
+        item.pop("input", None)
+    return item
+
 class CodexFilterProxy(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
@@ -209,7 +227,7 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                         continue
                     if isinstance(item, dict) and item.get("type") == "item_reference":
                         continue
-                    cleaned_input.append(item)
+                    cleaned_input.append(normalize_tool_call_args(item))
                 data["input"] = cleaned_input
 
             if collected_tools:
