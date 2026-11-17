@@ -114,78 +114,109 @@ export CUDA_HOME=/usr/local/cuda
 
 ____________________________________
 
-LEGACY VERSION:
 
-___________________________________
+nano /opt/vLLM/codex_proxy.py
+
+import json
+import urllib.error
+import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+VLLM_URL = "http://127.0.0.1:8000"
+
+# Nur Basis-Tools von Codex durchlassen, alle Plugin-/MCP-Tools für das 9B-Modell herausfiltern
+ALLOWED_TOOL_PREFIXES = ("shell", "local_shell", "apply_patch", "read_file", "write_file", "list_dir", "grep", "find")
+
+class CodexFilterProxy(BaseHTTPRequestHandler):
+    def do_GET(self):
+        req = urllib.request.Request(VLLM_URL + self.path)
+        try:
+            with urllib.request.urlopen(req) as resp:
+                self.send_response(resp.status)
+                for k, v in resp.getheaders():
+                    if k.lower() != "transfer-encoding":
+                        self.send_header(k, v)
+                self.end_headers()
+                self.wfile.write(resp.read())
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            self.end_headers()
+            self.wfile.write(e.read())
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+
+            # 1. Unsupported 'additional_tools' aus input entfernen
+            if isinstance(data.get("input"), list):
+                data["input"] = [
+                    item for item in data["input"]
+                    if not (isinstance(item, dict) and item.get("type") == "additional_tools")
+                ]
+
+            # 2. Plugin- und MCP-Tools aus tools entfernen (nur Basis-Coding-Tools behalten)
+            if isinstance(data.get("tools"), list):
+                filtered_tools = []
+                for tool in data["tools"]:
+                    t_name = tool.get("name") or tool.get("function", {}).get("name", "")
+                    t_type = tool.get("type", "")
+                    if t_type in ("local_shell", "shell") or t_name.startswith(ALLOWED_TOOL_PREFIXES):
+                        filtered_tools.append(tool)
+                data["tools"] = filtered_tools
+
+            # 3. OpenAI-spezifische Felder entfernen
+            data.pop("service_tier", None)
+
+            body = json.dumps(data).encode("utf-8")
+        except Exception:
+            pass
+
+        headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
+        headers["Content-Length"] = str(len(body))
+        req = urllib.request.Request(VLLM_URL + self.path, data=body, headers=headers, method="POST")
+
+        try:
+            with urllib.request.urlopen(req) as resp:
+                self.send_response(resp.status)
+                for k, v in resp.getheaders():
+                    if k.lower() != "transfer-encoding":
+                        self.send_header(k, v)
+                self.end_headers()
+                while True:
+                    chunk = resp.read(4096)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            self.end_headers()
+            self.wfile.write(e.read())
+
+if __name__ == "__main__":
+    ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
 
 
-# docker-compose.yml
-# Docker Compose v2 format (version key is deprecated and omitted)
-# Create a .env file in the same directory with: HF_TOKEN=hf_yourtoken
-# Add .env to .gitignore to prevent accidental commit.
+_____________
 
-services:
-    # 1. LMCache Backend Server (Stores offloaded KV caches in CPU/System RAM)
-  lmcache-server:
-    image: lmcache/standalone:latest  # Use official LMCache image
-    container_name: lmcache-server
-    ports:
-      - "5555:5555"
-    command: sh -c "export PYTHONHASHSEED=0 && python3 -m lmcache.v1.standalone --host 0.0.0.0 --port 5555"
-    restart: unless-stopped
+/opt/vLLM/.venv/bin/python /opt/vLLM/codex_proxy.py &
 
-  vllm:
-    image: lmcache/vllm-openai:latest  # Pin to a specific version for reproducibility
-    container_name: vllm-ornith
-    runtime: nvidia
-    ports:
-      - "8000:8000"
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
-    env_file:
-      - .env                          # Contains HF_TOKEN=hf_yourtoken; not committed to VCS
-    environment:
-      # env_file supplies HF_TOKEN; remap to the name vLLM/HF libraries expect:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
-      - LMCACHE_PORT=5555
-      - LMCACHE_HOST=0.0.0.0
-      - LMCACHE_USE_CONTROLLER=False
-    restart: unless-stopped
-    entrypoint: ["vllm", "serve"]
-    command: >
-      cyankiwi/Ornith-1.0-9B-AWQ-INT4
-      --quantization compressed-tensors
-      --gpu-memory-utilization 0.85
-      --max-model-len 131072
-      --max-num-batched-tokens 8192
-      --tensor-parallel-size 1
-      --max-num-seqs 1
-      --enable-prefix-caching
-      --enable-chunked-prefill
-      --port 8000
-      --kv-cache-dtype fp8
-      --enable-auto-tool-choice
-      --tool-call-parser qwen3_xml
-      --reasoning-parser qwen3
-      --language-model-only
-      --kv-offloading-size 16
-      --no-disable-hybrid-kv-cache-manager
-      --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"lmcache-server","lmc>
-    depends_on:
-      - lmcache-server
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    healthcheck:
-      # /health path is version-dependent. /v1/models is stable across vLLM versions.
-      test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:8000/health"]
-      interval: 60s
-      timeout: 10s
-      retries: 10        # Increased: model download on first run may exceed 5 retries
-      start_period: 901s # Grace period before health checks begin
+nano /etc/systemd/system/codex-proxy.service
+
+[Unit]
+Description=Codex Filter Proxy for vLLM
+After=network.target vllm.service
+Wants=vllm.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/vLLM/.venv/bin/python /opt/vLLM/codex_proxy.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
