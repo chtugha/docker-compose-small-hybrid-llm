@@ -129,7 +129,7 @@ VLLM_URL = "http://127.0.0.1:8000"
 KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
 DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier", "client_metadata")
 BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search")
-BLOCKED_EXACT_NAMES = ("exec", "js", "js_reset")
+BLOCKED_EXACT_NAMES = ("js", "js_reset")
 
 def extract_tools_from_list(tool_list):
     extracted = []
@@ -167,8 +167,9 @@ def extract_tools_from_list(tool_list):
 
 class CodexFilterProxy(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
-        sys.stderr.flush()
+        # sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
+        # sys.stderr.flush()
+        pass
 
     def do_GET(self):
         req = urllib.request.Request(VLLM_URL + self.path)
@@ -214,8 +215,8 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                 for tool in collected_tools:
                     unique_tools[tool["name"]] = tool
                 data["tools"] = list(unique_tools.values())
-                sys.stderr.write(f"INJECTED VLLM TOOLS ({len(data['tools'])}): {list(unique_tools.keys())}\n")
-                sys.stderr.flush()
+                # sys.stderr.write(f"INJECTED VLLM TOOLS ({len(data['tools'])}): {list(unique_tools.keys())}\n")
+                # sys.stderr.flush()
 
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
@@ -254,6 +255,7 @@ ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
     ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
 
+
 _____________
 
 nano /etc/systemd/system/codex-proxy.service
@@ -277,7 +279,7 @@ WantedBy=multi-user.target
 
 ____________
 
-sed -i 's/BLOCKED_EXACT_NAMES = ("exec", "js", "js_reset")/BLOCKED_EXACT_NAMES = ("js", "js_reset")/' /opt/vLLM/codex_proxy.py
+
 
 systemctl daemon-reload
 systemctl enable --now codex-proxy.service
