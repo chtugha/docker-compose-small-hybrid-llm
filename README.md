@@ -220,3 +220,10 @@ RestartSec=3
 [Install]
 WantedBy=multi-user.target
 
+
+
+____________
+
+systemctl daemon-reload
+systemctl enable --now codex-proxy.service
+
