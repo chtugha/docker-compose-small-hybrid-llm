@@ -85,7 +85,7 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --enable-auto-tool-choice \
     --enable-prefix-caching \
     --enable-chunked-prefill \
-    --max-num-batched-tokens 8192 \
+    --max-num-batched-tokens 10240 \
     --kv-cache-dtype fp8 \
     --safetensors-load-strategy prefetch \
     --mm-processor-kwargs '{"cap_pixels_per_frame":true}' \
@@ -380,7 +380,7 @@ model_provider = "dietpi_vllm"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "low"
 model_context_window = 131072
-model_auto_compact_token_limit = 95000
+model_auto_compact_token_limit = 75000
 
 [model_providers.dietpi_vllm]
 name = "DietPi vLLM (Ornith-1.5-9B)"
@@ -394,7 +394,7 @@ model_provider = "dietpi_vllm"
 model = "cyankiwi/Ornith-1.5-9B-AWQ-INT4"
 model_reasoning_effort = "low"
 model_context_window = 131072
-model_auto_compact_token_limit = 95000
+model_auto_compact_token_limit = 75000
 web_search = "disabled"
 service_tier = "default"
 
