@@ -315,7 +315,7 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                         self.send_header(k, v)
                 self.end_headers()
                 while True:
-                    chunk = resp.read(1024)
+                    chunk = resp.readline()
                     if not chunk:
                         break
                     self.wfile.write(chunk)
