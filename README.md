@@ -77,24 +77,28 @@ Environment="PATH=/usr/local/cuda/bin:/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/l
 
 
 ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
+    --served-model-name cyankiwi/Ornith-1.5-9B-AWQ-INT4 gpt-5.6-sol \
     --host 0.0.0.0 \
     --port 8000 \
-    --max-model-len 131072 \
-    --gpu-memory-utilization 0.90 \
+    --max-model-len 98304 \
+    --gpu-memory-utilization 0.77 \
     --max-num-seqs 1 \
     --enable-auto-tool-choice \
     --enable-prefix-caching \
     --enable-chunked-prefill \
-    --max-num-batched-tokens 10240 \
+    --max-num-batched-tokens 4096 \
+    --limit-mm-per-prompt '{"image": 0, "video": 0}' \
     --kv-cache-dtype fp8 \
     --safetensors-load-strategy prefetch \
     --mm-processor-kwargs '{"cap_pixels_per_frame":true}' \
     --tool-call-parser qwen3_xml \
     --reasoning-parser qwen3 \
+    --speculative-config '{"method": "mtp", "num_speculative_tokens": 1}' \
     --trust-remote-code \
     --performance-mode interactivity \
     --no-disable-hybrid-kv-cache-manager \
     --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_connector_module_path":"lmcache.integration.vllm.lmcache_mp_connector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"127.0.0.1","lmcache.mp.port":5555}}'
+
 
 Restart=on-failure
 RestartSec=10
@@ -104,6 +108,8 @@ TimeoutStopSec=60
 WantedBy=multi-user.target
 
 
+
+_____________________________________
 
 export PATH=/usr/local/cuda/bin:$PATH
 export CUDA_HOME=/usr/local/cuda
