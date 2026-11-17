@@ -118,16 +118,30 @@ ____________________________________
 nano /opt/vLLM/codex_proxy.py
 
 import json
+import sys
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VLLM_URL = "http://127.0.0.1:8000"
-
-# Nur Basis-Tools von Codex durchlassen, alle Plugin-/MCP-Tools für das 9B-Modell herausfiltern
 ALLOWED_TOOL_PREFIXES = ("shell", "local_shell", "apply_patch", "read_file", "write_file", "list_dir", "grep", "find")
+DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier")
+
+def get_active_vllm_model():
+    try:
+        with urllib.request.urlopen(VLLM_URL + "/v1/models", timeout=2) as resp:
+            models = json.loads(resp.read()).get("data", [])
+            if models:
+                return models[0]["id"]
+    except Exception:
+        pass
+    return None
 
 class CodexFilterProxy(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
+        sys.stderr.flush()
+
     def do_GET(self):
         req = urllib.request.Request(VLLM_URL + self.path)
         try:
@@ -139,24 +153,26 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(resp.read())
         except urllib.error.HTTPError as e:
+            err = e.read()
             self.send_response(e.code)
             self.end_headers()
-            self.wfile.write(e.read())
+            self.wfile.write(err)
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
         try:
             data = json.loads(body)
+            active_model = get_active_vllm_model()
+            if active_model:
+                data["model"] = active_model
 
-            # 1. Unsupported 'additional_tools' aus input entfernen
             if isinstance(data.get("input"), list):
                 data["input"] = [
                     item for item in data["input"]
-                    if not (isinstance(item, dict) and item.get("type") == "additional_tools")
+                    if not (isinstance(item, dict) and item.get("type") in ("additional_tools", "item_reference"))
                 ]
 
-            # 2. Plugin- und MCP-Tools aus tools entfernen (nur Basis-Coding-Tools behalten)
             if isinstance(data.get("tools"), list):
                 filtered_tools = []
                 for tool in data["tools"]:
@@ -166,12 +182,12 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                         filtered_tools.append(tool)
                 data["tools"] = filtered_tools
 
-            # 3. OpenAI-spezifische Felder entfernen
-            data.pop("service_tier", None)
+            for key in DROP_TOP_LEVEL_KEYS:
+                data.pop(key, None)
 
             body = json.dumps(data).encode("utf-8")
-        except Exception:
-            pass
+        except Exception as ex:
+            sys.stderr.write(f"JSON PARSE ERROR: {ex}\n")
 
         headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
         headers["Content-Length"] = str(len(body))
@@ -191,12 +207,17 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                     self.wfile.write(chunk)
                     self.wfile.flush()
         except urllib.error.HTTPError as e:
+            err = e.read()
+            sys.stderr.write(f"VLLM REJECTED {e.code}: {err.decode('utf-8', 'ignore')}\n")
+            sys.stderr.flush()
             self.send_response(e.code)
             self.end_headers()
-            self.wfile.write(e.read())
+            self.wfile.write(err)
 
+ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
     ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
+
 
 
 _____________
@@ -223,6 +244,8 @@ WantedBy=multi-user.target
 ____________
 
 sed -i 's/if __name__ == "__main__":/ThreadingHTTPServer.allow_reuse_address = True\nif __name__ == "__main__":/' /opt/vLLM/codex_proxy.py
+
+sed -i 's/data = json.loads(body)/data = json.loads(body)\n            data["model"] = "cyankiwi\/Ornith-1.5-9B-AWQ-INT4"/' /opt/vLLM/codex_proxy.py
 
 systemctl daemon-reload
 systemctl enable --now codex-proxy.service
