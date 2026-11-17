@@ -277,9 +277,7 @@ WantedBy=multi-user.target
 
 ____________
 
-sed -i 's/if __name__ == "__main__":/ThreadingHTTPServer.allow_reuse_address = True\nif __name__ == "__main__":/' /opt/vLLM/codex_proxy.py
-
-sed -i 's/data = json.loads(body)/data = json.loads(body)\n            data["model"] = "cyankiwi\/Ornith-1.5-9B-AWQ-INT4"/' /opt/vLLM/codex_proxy.py
+sed -i 's/BLOCKED_EXACT_NAMES = ("exec", "js", "js_reset")/BLOCKED_EXACT_NAMES = ("js", "js_reset")/' /opt/vLLM/codex_proxy.py
 
 systemctl daemon-reload
 systemctl enable --now codex-proxy.service
