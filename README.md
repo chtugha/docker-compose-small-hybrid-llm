@@ -43,6 +43,24 @@ TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
+**[Unit]
+Description=LMCache MP KV Cache Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vLLM
+Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONHASHSEED=0"
+ExecStart=/opt/vLLM/.venv/bin/lmcache server --host 127.0.0.1 --port 5555 --l1-size-gb 24 --l1-use-lazy --l1-init-size-gb 4 --eviction-policy LRU --chunk-size 1056 --worker-reap-timeout-seconds 0 --separate-object-groups
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
 
 
 
@@ -51,14 +69,10 @@ systemctl enable --now lmcache.service
 
 
 cat >/etc/systemd/system/vllm.service <<'EOF'
-[Unit]
-Description=vLLM Ornith-1.5-9B-AWQ-INT4
-After=network-online.target lmcache.service
-Wants=network-online.target
-Requires=lmcache.service
+
 
 [Unit]
-Description=vLLM Ornith-1.5-9B-AWQ-INT4
+Description=vLLM Ornith-1.5-9B-NVFP4
 After=network-online.target lmcache.service
 Wants=network-online.target
 Requires=lmcache.service
@@ -71,13 +85,13 @@ WorkingDirectory=/opt/vLLM
 Environment="PATH=/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="HF_HOME=/opt/vLLM/huggingface"
 Environment="PYTHONHASHSEED=0"
-Environment="HF_TOKEN=hf_cSkfdDe"
+Environment="HF_TOKEN=hf_cSkfY"
 Environment="CUDA_HOME=/usr/local/cuda"
 Environment="PATH=/usr/local/cuda/bin:/opt/vLLM/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 
-ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
-    --served-model-name cyankiwi/Ornith-1.5-9B-AWQ-INT4 gpt-5.6-sol \
+ExecStart=/opt/vLLM/.venv/bin/vllm serve ornith-ai/Ornith-1.5-9B-NVFP4 \
+    --served-model-name ornith-ai/Ornith-1.5-9B-NVFP4 cyankiwi/Ornith-1.5-9B-AWQ-INT4 gpt-5.6-sol \
     --host 0.0.0.0 \
     --port 8000 \
     --max-model-len 98304 \
@@ -98,7 +112,6 @@ ExecStart=/opt/vLLM/.venv/bin/vllm serve cyankiwi/Ornith-1.5-9B-AWQ-INT4 \
     --performance-mode interactivity \
     --no-disable-hybrid-kv-cache-manager \
     --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_connector_module_path":"lmcache.integration.vllm.lmcache_mp_connector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"127.0.0.1","lmcache.mp.port":5555}}'
-
 
 Restart=on-failure
 RestartSec=10
