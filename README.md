@@ -118,7 +118,6 @@ ____________________________________
 nano /opt/vLLM/codex_proxy.py
 
 
-
 import json
 import sys
 import urllib.error
@@ -167,8 +166,6 @@ def extract_tools_from_list(tool_list):
 
 class CodexFilterProxy(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
-        # sys.stderr.flush()
         pass
 
     def do_GET(self):
@@ -181,11 +178,16 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                         self.send_header(k, v)
                 self.end_headers()
                 self.wfile.write(resp.read())
+        except (BrokenPipeError, ConnectionResetError):
+            pass
         except urllib.error.HTTPError as e:
-            err = e.read()
-            self.send_response(e.code)
-            self.end_headers()
-            self.wfile.write(err)
+            try:
+                err = e.read()
+                self.send_response(e.code)
+                self.end_headers()
+                self.wfile.write(err)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -215,8 +217,6 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                 for tool in collected_tools:
                     unique_tools[tool["name"]] = tool
                 data["tools"] = list(unique_tools.values())
-                # sys.stderr.write(f"INJECTED VLLM TOOLS ({len(data['tools'])}): {list(unique_tools.keys())}\n")
-                # sys.stderr.flush()
 
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
@@ -243,13 +243,18 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                         break
                     self.wfile.write(chunk)
                     self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
         except urllib.error.HTTPError as e:
-            err = e.read()
-            sys.stderr.write(f"VLLM REJECTED {e.code}: {err.decode('utf-8', 'ignore')}\n")
-            sys.stderr.flush()
-            self.send_response(e.code)
-            self.end_headers()
-            self.wfile.write(err)
+            try:
+                err = e.read()
+                sys.stderr.write(f"VLLM REJECTED {e.code}: {err.decode('utf-8', 'ignore')}\n")
+                sys.stderr.flush()
+                self.send_response(e.code)
+                self.end_headers()
+                self.wfile.write(err)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
 ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
