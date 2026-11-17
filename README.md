@@ -136,11 +136,18 @@ VLLM_URL = "http://127.0.0.1:8000"
 DEFAULT_MODEL = "gpt-5.6-sol"
 KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
 
-# Sampling & Anti-Wortsalat-Parameter
-TEMPERATURE = 0.25
+# Sampling & Anti-Wortsalat-Parameter (niedrige Temperatur verhindert Raten/Halluzinieren)
+TEMPERATURE = 0.15
 TOP_P = 0.9
 REPETITION_PENALTY = 1.12
 MAX_OUTPUT_TOKENS = 8192
+
+# Strikte Verhaltensregel für das lokale Modell (bleibt stabil im Prefix-Cache)
+STRICT_PREFIX = (
+    "CRITICAL RULE: Never guess or assume facts about files, code, git status, or system state. "
+    "Always run `exec` to inspect and verify before making any claim. "
+    "Cite the exact file path or command output for every statement.\n\n"
+)
 
 # Qwen3 / Ornith Thinking-Budget (Obergrenze in Tokens je Reasoning-Effort-Stufe)
 DEFAULT_REASONING_EFFORT = "medium"
@@ -246,6 +253,14 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
 
             if data.get("model") not in KNOWN_MODELS:
                 data["model"] = DEFAULT_MODEL
+
+            # Strikte Prüfungs-Regel dem System-Prompt voranstellen
+            if STRICT_PREFIX:
+                if isinstance(data.get("instructions"), str):
+                    if STRICT_PREFIX not in data["instructions"]:
+                        data["instructions"] = STRICT_PREFIX + data["instructions"]
+                else:
+                    data["instructions"] = STRICT_PREFIX.strip()
 
             collected_tools = extract_tools_from_list(data.get("tools", []))
 
