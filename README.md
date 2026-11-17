@@ -117,26 +117,49 @@ ____________________________________
 
 nano /opt/vLLM/codex_proxy.py
 
-
 import json
 import sys
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VLLM_URL = "http://127.0.0.1:8000"
-KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
-DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier", "client_metadata")
-BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search")
-BLOCKED_EXACT_NAMES = ("js", "js_reset")
+# ==============================================================================
+# KONFIGURATION (Alle wichtigen Stellschrauben auf einen Blick)
+# ==============================================================================
 
+# Netzwerk & Ports
+PROXY_HOST = "0.0.0.0"
+PROXY_PORT = 8001
+VLLM_URL = "http://127.0.0.1:8000"
+
+# Modelle (unbekannte Hintergrund-Modelle wie gpt-6-luna werden auf DEFAULT_MODEL gemappt)
+DEFAULT_MODEL = "gpt-5.6-sol"
+KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
+
+# Sampling & Anti-Wortsalat-Parameter
+TEMPERATURE = 0.25
+TOP_P = 0.9
+REPETITION_PENALTY = 1.12
+MAX_OUTPUT_TOKENS = 8192
+
+# Qwen3 / Ornith Thinking-Budget (Obergrenze in Tokens je Reasoning-Effort-Stufe)
+DEFAULT_REASONING_EFFORT = "medium"
 EFFORT_TO_BUDGET = {
-    "minimal": 128,
-    "low": 512,
+    "minimal": 256,
+    "low": 768,
     "medium": 2048,
     "high": 4096,
     "xhigh": 6144,
 }
+
+# Tool-Filter & OpenAI-Sonderfelder
+DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier", "client_metadata")
+BLOCKED_TOOL_PREFIXES = ("mcp__", "browser", "computer", "sky", "pdf", "spreadsheet", "presentation", "document", "visualize", "template", "web_search")
+BLOCKED_EXACT_NAMES = ("js", "js_reset")
+
+# ==============================================================================
+# PROXY-LOGIK (Ab hier muss im Alltag nichts mehr geändert werden)
+# ==============================================================================
 
 def extract_tools_from_list(tool_list):
     extracted = []
@@ -222,7 +245,7 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
             data = json.loads(body)
 
             if data.get("model") not in KNOWN_MODELS:
-                data["model"] = "gpt-5.6-sol"
+                data["model"] = DEFAULT_MODEL
 
             collected_tools = extract_tools_from_list(data.get("tools", []))
 
@@ -244,19 +267,18 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                     unique_tools[tool["name"]] = tool
                 data["tools"] = list(unique_tools.values())
 
-            # Codex reasoning.effort in natives Qwen3 thinking_budget übersetzen
             reasoning_cfg = data.get("reasoning")
-            effort = reasoning_cfg.get("effort", "low") if isinstance(reasoning_cfg, dict) else "low"
-            budget = EFFORT_TO_BUDGET.get(str(effort).lower(), 512)
+            effort = reasoning_cfg.get("effort", DEFAULT_REASONING_EFFORT) if isinstance(reasoning_cfg, dict) else DEFAULT_REASONING_EFFORT
+            budget = EFFORT_TO_BUDGET.get(str(effort).lower(), EFFORT_TO_BUDGET[DEFAULT_REASONING_EFFORT])
             data["chat_template_kwargs"] = {
                 "enable_thinking": True,
                 "thinking_budget": budget,
             }
 
-            data["temperature"] = 0.25
-            data["top_p"] = 0.9
-            data["repetition_penalty"] = 1.12
-            data["max_output_tokens"] = min(int(data.get("max_output_tokens", 8192)), 8192)
+            data["temperature"] = TEMPERATURE
+            data["top_p"] = TOP_P
+            data["repetition_penalty"] = REPETITION_PENALTY
+            data["max_output_tokens"] = min(int(data.get("max_output_tokens", MAX_OUTPUT_TOKENS)), MAX_OUTPUT_TOKENS)
 
             for key in DROP_TOP_LEVEL_KEYS:
                 data.pop(key, None)
@@ -298,7 +320,7 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
 
 ThreadingHTTPServer.allow_reuse_address = True
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", 8001), CodexFilterProxy).serve_forever()
+    ThreadingHTTPServer((PROXY_HOST, PROXY_PORT), CodexFilterProxy).serve_forever()
 
 
 _____________
