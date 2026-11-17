@@ -124,18 +124,9 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VLLM_URL = "http://127.0.0.1:8000"
+KNOWN_MODELS = ("cyankiwi/Ornith-1.5-9B-AWQ-INT4", "gpt-5.6-sol")
 ALLOWED_TOOL_PREFIXES = ("shell", "local_shell", "apply_patch", "read_file", "write_file", "list_dir", "grep", "find")
 DROP_TOP_LEVEL_KEYS = ("service_tier", "store", "include", "prompt_cache_key", "safety_identifier")
-
-def get_active_vllm_model():
-    try:
-        with urllib.request.urlopen(VLLM_URL + "/v1/models", timeout=2) as resp:
-            models = json.loads(resp.read()).get("data", [])
-            if models:
-                return models[0]["id"]
-    except Exception:
-        pass
-    return None
 
 class CodexFilterProxy(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -163,9 +154,10 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
         body = self.rfile.read(length)
         try:
             data = json.loads(body)
-            active_model = get_active_vllm_model()
-            if active_model:
-                data["model"] = active_model
+
+            # Nur unbekannte Hintergrund-Modelle (wie gpt-6-luna) auf gpt-5.6-sol mappen
+            if data.get("model") not in KNOWN_MODELS:
+                data["model"] = "gpt-5.6-sol"
 
             if isinstance(data.get("input"), list):
                 data["input"] = [
@@ -201,7 +193,7 @@ class CodexFilterProxy(BaseHTTPRequestHandler):
                         self.send_header(k, v)
                 self.end_headers()
                 while True:
-                    chunk = resp.read(4096)
+                    chunk = resp.read(1024)
                     if not chunk:
                         break
                     self.wfile.write(chunk)
