@@ -201,8 +201,6 @@ if __name__ == "__main__":
 
 _____________
 
-/opt/vLLM/.venv/bin/python /opt/vLLM/codex_proxy.py &
-
 nano /etc/systemd/system/codex-proxy.service
 
 [Unit]
@@ -223,6 +221,8 @@ WantedBy=multi-user.target
 
 
 ____________
+
+sed -i 's/if __name__ == "__main__":/ThreadingHTTPServer.allow_reuse_address = True\nif __name__ == "__main__":/' /opt/vLLM/codex_proxy.py
 
 systemctl daemon-reload
 systemctl enable --now codex-proxy.service
